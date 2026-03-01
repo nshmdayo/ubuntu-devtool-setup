@@ -11,8 +11,3 @@ source ~/.bashrc
 mise doctor
 mise use -g node@24
 
-sudo apt update -y && sudo apt upgrade -y && sudo apt autoremove -y
-
-npm install -g npm@latest
-npm install -g @google/gemini-cli
-npm install -g @google/jules
