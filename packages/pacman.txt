@@ -1,0 +1,17 @@
+# Bootstrap
+ca-certificates
+curl
+wget
+gnupg
+sudo
+shadow
+
+# Development
+git
+base-devel
+podman
+neovim
+
+# GitHub CLI
+github-cli
+

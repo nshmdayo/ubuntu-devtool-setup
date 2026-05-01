@@ -1,0 +1,16 @@
+# Bootstrap
+ca-certificates
+curl
+wget
+gpg
+sudo
+
+# Development
+git
+build-essential
+podman
+neovim
+
+# GitHub CLI
+gh
+

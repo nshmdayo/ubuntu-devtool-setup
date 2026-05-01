@@ -1,0 +1,19 @@
+# Bootstrap
+ca-certificates
+curl
+wget
+gnupg2
+sudo
+passwd
+
+# Development
+git
+gcc
+gcc-c++
+make
+podman
+neovim
+
+# GitHub CLI
+gh
+
