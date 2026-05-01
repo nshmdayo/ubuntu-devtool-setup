@@ -1,0 +1,10 @@
+# format:
+# <nix-package-attr> <commands-to-verify...>
+# packages prefixed with "npm:" are installed via npm install -g
+
+nixpkgs.nodejs_24 node npm npx
+nixpkgs.go go
+
+npm:@openai/codex codex
+npm:@google/gemini-cli gemini
+npm:@anthropic-ai/claude-code claude

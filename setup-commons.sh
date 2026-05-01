@@ -49,7 +49,7 @@ if [ "$(id -u)" -eq 0 ] && [ "$ALLOW_ROOT" -ne 1 ]; then
 このスクリプトは通常ユーザーで実行してください。
 
 理由:
-  mise / node / codex / gemini / claude はユーザーの $HOME 配下に入るため、
+  Nix / node / codex / gemini / claude はユーザーの $HOME 配下に入るため、
   root で実行すると /root 用の環境になってしまいます。
 
 通常の実行:
@@ -156,59 +156,70 @@ ensure_bashrc_line() {
   fi
 }
 
-install_mise() {
-  log "mise をセットアップ"
+install_nix() {
+  log "Nix をセットアップ"
 
-  export PATH="$HOME/.local/bin:$PATH"
-
-  if ! command -v mise >/dev/null 2>&1; then
-    curl -fsSL https://mise.run | sh
-    export PATH="$HOME/.local/bin:$PATH"
+  if ! command -v nix >/dev/null 2>&1; then
+    sh <(curl -fsSL https://nixos.org/nix/install) --no-daemon
   fi
 
-  if ! command -v mise >/dev/null 2>&1; then
-    echo "mise のインストールに失敗しました。" >&2
+  if [ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
+    . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+  fi
+
+  if ! command -v nix >/dev/null 2>&1; then
+    echo "Nix のインストールに失敗しました。" >&2
     exit 1
   fi
 
-  ensure_bashrc_line 'export PATH="$HOME/.local/bin:$PATH"'
-  ensure_bashrc_line 'eval "$(mise activate bash)"'
-
-  eval "$(mise activate bash)"
-  hash -r
+  ensure_bashrc_line '. "$HOME/.nix-profile/etc/profile.d/nix.sh"'
 }
 
-install_mise_tools() {
+install_nix_tools() {
   local tools_file="$1"
 
   if [ ! -f "$tools_file" ]; then
-    echo "mise tools file not found: $tools_file" >&2
+    echo "Nix tools file not found: $tools_file" >&2
     exit 1
   fi
 
-  log "mise tools をインストール"
+  log "Nix tools をインストール"
   log "Tools file: $tools_file"
 
-  local current_dir
-  current_dir="$(pwd)"
-  cd "$HOME"
+  if ! nix-channel --list | grep -q nixpkgs; then
+    nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
+  fi
+  nix-channel --update
 
-  while read -r tool _commands; do
-    [ -z "${tool:-}" ] && continue
+  while read -r package _commands; do
+    [ -z "${package:-}" ] && continue
+    [[ "$package" == npm:* ]] && continue
 
-    log "mise use --global ${tool}"
-    mise use --global "$tool"
+    log "nix-env -iA ${package}"
+    nix-env -iA "$package"
   done < <(
     grep -vE '^\s*(#|$)' "$tools_file" \
       | sed -E 's/#.*$//' \
       | awk 'NF'
   )
 
-  mise install
+  hash -r
 
-  cd "$current_dir"
+  log "npm global packages をインストール"
 
-  eval "$(mise activate bash)"
+  while read -r package _commands; do
+    [ -z "${package:-}" ] && continue
+    [[ "$package" != npm:* ]] && continue
+
+    local npm_pkg="${package#npm:}"
+    log "npm install -g ${npm_pkg}"
+    npm install -g "$npm_pkg"
+  done < <(
+    grep -vE '^\s*(#|$)' "$tools_file" \
+      | sed -E 's/#.*$//' \
+      | awk 'NF'
+  )
+
   hash -r
 }
 
@@ -222,16 +233,16 @@ verify_installation() {
   echo "shell:  ${SHELL:-unknown}"
   echo
 
-  if command -v mise >/dev/null 2>&1; then
-    echo "mise:   $(mise --version)"
+  if command -v nix >/dev/null 2>&1; then
+    echo "nix:    $(nix --version)"
   else
-    echo "mise:   not found"
+    echo "nix:    not found"
     return 1
   fi
 
   echo
-  log "mise current"
-  mise current || true
+  log "nix-env --query"
+  nix-env --query || true
 
   echo
   log "commands"
@@ -241,7 +252,6 @@ verify_installation() {
   while read -r tool commands; do
     [ -z "${tool:-}" ] && continue
 
-    # 2列目以降が空なら、その tool は verify 対象なし
     if [ -z "${commands:-}" ]; then
       continue
     fi
@@ -288,10 +298,10 @@ verify_installation() {
 
   if [ "$failed" -ne 0 ]; then
     echo
-    echo "一部の mise tools が見つかりません。必要なら次を実行してください:"
+    echo "一部の Nix tools が見つかりません。必要なら次を実行してください:"
     echo
     echo "  exec bash -l"
-    echo "  mise install"
+    echo "  nix-env --query"
     echo
     return 1
   fi
@@ -307,12 +317,12 @@ main() {
   fi
 
   local package_file="${SCRIPT_DIR}/packages/${pm}.txt"
-  local mise_tools_file="${SCRIPT_DIR}/tools/mise.txt"
+  local nix_tools_file="${SCRIPT_DIR}/tools/nix.txt"
 
   install_packages "$pm" "$package_file"
-  install_mise
-  install_mise_tools "$mise_tools_file"
-  verify_installation "$mise_tools_file"
+  install_nix
+  install_nix_tools "$nix_tools_file"
+  verify_installation "$nix_tools_file"
 
   cat <<'EOF'
 
@@ -324,7 +334,8 @@ main() {
 
 確認:
 
-  mise current
+  nix --version
+  nix-env --query
   node -v
   npm -v
   command -v codex
