@@ -179,17 +179,30 @@ install_mise() {
 }
 
 install_mise_tools() {
-  log "Node.js 24 と AI CLI tools を mise 経由でインストール"
+  local tools_file="$1"
 
-  # カレントディレクトリに .mise.toml があると global 設定の確認がややこしくなるため HOME で実行する
+  if [ ! -f "$tools_file" ]; then
+    echo "mise tools file not found: $tools_file" >&2
+    exit 1
+  fi
+
+  log "mise tools をインストール"
+  log "Tools file: $tools_file"
+
   local current_dir
   current_dir="$(pwd)"
   cd "$HOME"
 
-  mise use --global node@24
-  mise use --global npm:@openai/codex
-  mise use --global npm:@google/gemini-cli
-  mise use --global npm:@anthropic-ai/claude-code
+  while read -r tool _commands; do
+    [ -z "${tool:-}" ] && continue
+
+    log "mise use --global ${tool}"
+    mise use --global "$tool"
+  done < <(
+    grep -vE '^\s*(#|$)' "$tools_file" \
+      | sed -E 's/#.*$//' \
+      | awk 'NF'
+  )
 
   mise install
 
@@ -200,16 +213,60 @@ install_mise_tools() {
 }
 
 verify_installation() {
+  local tools_file="$1"
+
   log "インストール確認"
 
-  echo "shell:  ${SHELL:-unknown}"
   echo "user:   $(whoami)"
   echo "home:   $HOME"
+  echo "shell:  ${SHELL:-unknown}"
   echo
 
-  echo "mise:   $(mise --version)"
-  echo "node:   $(node -v)"
-  echo "npm:    $(npm -v)"
+  if command -v mise >/dev/null 2>&1; then
+    echo "mise:   $(mise --version)"
+  else
+    echo "mise:   not found"
+    return 1
+  fi
+
+  echo
+  log "mise current"
+  mise current || true
+
+  echo
+  log "commands"
+
+  local failed=0
+
+  while read -r tool commands; do
+    [ -z "${tool:-}" ] && continue
+
+    # 2列目以降が空なら、その tool は verify 対象なし
+    if [ -z "${commands:-}" ]; then
+      continue
+    fi
+
+    for cmd in $commands; do
+      if command -v "$cmd" >/dev/null 2>&1; then
+        printf "OK   %-10s %s\n" "$cmd" "$(command -v "$cmd")"
+
+        case "$cmd" in
+          node|npm|npx|go|codex|gemini|claude|gh|podman|nvim)
+            "$cmd" --version 2>/dev/null | head -n 1 || true
+            ;;
+        esac
+      else
+        printf "NG   %-10s not found\n" "$cmd"
+        failed=1
+      fi
+    done
+  done < <(
+    grep -vE '^\s*(#|$)' "$tools_file" \
+      | sed -E 's/#.*$//' \
+      | awk 'NF'
+  )
+
+  echo
 
   if command -v gh >/dev/null 2>&1; then
     echo "gh:     $(gh --version | head -n 1)"
@@ -217,17 +274,27 @@ verify_installation() {
     echo "gh:     not found"
   fi
 
-  echo
-  command -v podman || true
-  command -v nvim || true
-  command -v codex || true
-  command -v gemini || true
-  command -v claude || true
+  if command -v podman >/dev/null 2>&1; then
+    echo "podman: $(podman --version)"
+  else
+    echo "podman: not found"
+  fi
 
-  echo
-  codex --version || true
-  gemini --version || true
-  claude --version || true
+  if command -v nvim >/dev/null 2>&1; then
+    echo "nvim:   $(nvim --version | head -n 1)"
+  else
+    echo "nvim:   not found"
+  fi
+
+  if [ "$failed" -ne 0 ]; then
+    echo
+    echo "一部の mise tools が見つかりません。必要なら次を実行してください:"
+    echo
+    echo "  exec bash -l"
+    echo "  mise install"
+    echo
+    return 1
+  fi
 }
 
 main() {
@@ -240,11 +307,12 @@ main() {
   fi
 
   local package_file="${SCRIPT_DIR}/packages/${pm}.txt"
+  local mise_tools_file="${SCRIPT_DIR}/tools/mise.txt"
 
   install_packages "$pm" "$package_file"
   install_mise
-  install_mise_tools
-  verify_installation
+  install_mise_tools "$mise_tools_file"
+  verify_installation "$mise_tools_file"
 
   cat <<'EOF'
 

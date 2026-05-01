@@ -1,0 +1,10 @@
+# format:
+# <mise-tool-spec> <commands-to-verify...>
+
+node@24 node npm npx
+go@latest go
+
+npm:@openai/codex codex
+npm:@google/gemini-cli gemini
+npm:@anthropic-ai/claude-code claude
+
