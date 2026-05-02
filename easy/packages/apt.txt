@@ -4,6 +4,7 @@ curl
 wget
 gpg
 sudo
+tree
 
 # Development
 git

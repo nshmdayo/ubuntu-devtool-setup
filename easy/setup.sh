@@ -237,6 +237,64 @@ create_directories() {
   )
 }
 
+repo_name_from_url() {
+  local url="$1"
+
+  # trailing slash を削る
+  url="${url%/}"
+
+  # 最後の / 以降を取り出す
+  local name="${url##*/}"
+
+  # .git を削る
+  name="${name%.git}"
+
+  printf '%s\n' "$name"
+}
+
+clone_repositories() {
+  local repos_file="$1"
+  local base_dir="$2"
+
+  if [ ! -f "$repos_file" ]; then
+    log "Repos file not found, skip: $repos_file"
+    return
+  fi
+
+  mkdir -p "$base_dir"
+
+  log "repositories を clone"
+  log "Repos file: $repos_file"
+  log "Base dir: $base_dir"
+
+  while read -r repo_url repo_dir; do
+    [ -z "${repo_url:-}" ] && continue
+
+    if [ -z "${repo_dir:-}" ]; then
+      repo_dir="$(repo_name_from_url "$repo_url")"
+    fi
+
+    local dest="${base_dir}/${repo_dir}"
+
+    if [ -d "$dest/.git" ]; then
+      log "skip: already cloned: $dest"
+      continue
+    fi
+
+    if [ -e "$dest" ]; then
+      echo "既に存在しますが git repository ではありません: $dest" >&2
+      continue
+    fi
+
+    log "git clone ${repo_url} ${dest}"
+    git clone "$repo_url" "$dest"
+  done < <(
+    grep -vE '^\s*(#|$)' "$repos_file" \
+      | sed -E 's/[[:space:]]+#.*$//' \
+      | awk 'NF'
+  )
+}
+
 verify_installation() {
   local tools_file="$1"
 
@@ -334,9 +392,11 @@ main() {
   local package_file="${SCRIPT_DIR}/packages/${pm}.txt"
   local mise_tools_file="${SCRIPT_DIR}/tools/mise.txt"
   local dirs_file="${SCRIPT_DIR}/directories/workspaces.txt"
+  local repos_file="${SCRIPT_DIR}/repos/projects.txt"
 
   install_packages "$pm" "$package_file"
   create_directories "$dirs_file"
+  clone_repositories "$repos_file" "$HOME/workspaces/projects"
   install_mise
   install_mise_tools "$mise_tools_file"
   verify_installation "$mise_tools_file"
