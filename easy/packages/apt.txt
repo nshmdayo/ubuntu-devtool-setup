@@ -13,6 +13,7 @@ neovim
 micro
 hx
 pkg-config
+glow
 
 # GitHub CLI
 gh
