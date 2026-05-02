@@ -3,6 +3,6 @@
 
 node@latest node npm npx
 go@latest go
-python@latest
-rust@latest
-wasmtime@latest
+python@latest python
+rust@latest rustc
+wasmtime@latest wasmtime

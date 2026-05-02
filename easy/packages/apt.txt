@@ -9,6 +9,7 @@ sudo
 git
 build-essential
 podman
+neovim
 micro
 hx
 pkg-config
