@@ -1,0 +1,3 @@
+~/workspaces/projects
+~/workspaces/sandbox
+~/workspaces/oss

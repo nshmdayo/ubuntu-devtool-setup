@@ -212,6 +212,31 @@ install_mise_tools() {
   hash -r
 }
 
+create_directories() {
+  local dirs_file="$1"
+
+  if [ ! -f "$dirs_file" ]; then
+    echo "directories file not found: $dirs_file" >&2
+    exit 1
+  fi
+
+  log "ディレクトリを作成"
+
+  while read -r dir; do
+    [ -z "${dir:-}" ] && continue
+
+    # ~/xxx を $HOME/xxx に展開
+    dir="${dir/#\~/$HOME}"
+
+    log "mkdir -p ${dir}"
+    mkdir -p "$dir"
+  done < <(
+    grep -vE '^\s*(#|$)' "$dirs_file" \
+      | sed -E 's/#.*$//' \
+      | awk 'NF'
+  )
+}
+
 verify_installation() {
   local tools_file="$1"
 
@@ -308,8 +333,10 @@ main() {
 
   local package_file="${SCRIPT_DIR}/packages/${pm}.txt"
   local mise_tools_file="${SCRIPT_DIR}/tools/mise.txt"
+  local dirs_file="${SCRIPT_DIR}/directories/workspaces.txt"
 
   install_packages "$pm" "$package_file"
+  create_directories "$dirs_file"
   install_mise
   install_mise_tools "$mise_tools_file"
   verify_installation "$mise_tools_file"

@@ -9,9 +9,8 @@ sudo
 git
 build-essential
 podman
-neovim
 micro
-helix
+hx
 
 # GitHub CLI
 gh
