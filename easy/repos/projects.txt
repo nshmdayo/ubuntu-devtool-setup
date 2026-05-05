@@ -1,4 +1,4 @@
 # repo_url [directory_name]
-https://github.com/nshmdayo/sd.git
+https://github.com/nshmdayo/ofdir.git
 https://github.com/nshmdayo/xynon.git
 https://github.com/nshmdayo/nico.git
